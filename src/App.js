@@ -1,57 +1,155 @@
-import React,{useState} from 'react';
-export default function App(){
-  const [income,setIncome]=useState(0);
-  const [expense,setExpense]=useState(0);
-  const [input,setInput]=useState({text:'',amount:0});
-  const [tran,setTran]=useState([]);
-  const bal=income-expense;
-  function sub(e){
-    e.preventDefault();
-    const amount=parseInt(input.amount);
-    if(amount<0){
-      setExpense(prev=>prev+Math.abs(amount));
-    }
-    else{
-      setIncome(prev=>prev+amount);
-    }
-    setTran(prev=>[...prev,input]);
-    
-    
+import React,{useState,useEffect} from 'react';
 
-  }
-  function change1(e){
-    setInput({...input,text:e.target.value});
-  }
-  function change2(e){
-    setInput({...input,amount:e.target.value});
-  }
-  function clear(e){
+export default function App(){
+  const [input,setInput]=useState({text:'',amount:""});
+  const [transactions,setTransactions]=useState(()=>{
+    const stored=localStorage.getItem("transactions");
+    return stored?JSON.parse(stored):[];
+  });
+
+  const amounts = transactions.map(t => t.amount);
+
+  const income = amounts
+    .filter(a => a > 0)
+    .reduce((acc, cur) => acc + cur, 0);
+
+  const expense = amounts
+    .filter(a => a < 0)
+    .reduce((acc, cur) => acc + Math.abs(cur), 0);
+
+  const balance = income - expense;
+
+  function handleSubmit(e){
     e.preventDefault();
-    setInput({text:'',amount:0});
+    if(!input.text.trim()) return;
+    if(!input.amount || isNaN(input.amount)) return;
+
+    setTransactions(prev => [
+      ...prev,
+      { id: Date.now(), text: input.text, amount: Number(input.amount) }
+    ]);
+
+    setInput({ text:"", amount:"" });
   }
-  return(
-    <>
-    <div className="bg-gray-200 min-h-screen flex justify-center items-center ">
-      <div className="bg-white rounded-lg border-2 border-gray-500 px-10">
-        <h1 className=" text-center text-4xl mb-5 font-semibold mt-3">Expense Tracker</h1>
-        <div  className="border-2 border-gray-500 rounded-lg flex flex-col p-4 "><div className="mb-3"><p className="text-lg text-center">YOUR BALANCE</p></div><div className={`text-3xl text-center  ${bal<0? 'text-red-500':'text-green-500'} font-semibold`}>${income-expense}</div></div>
-        <div className="flex justify-center items-center w-full"><div className="border-2 border-gray-300 rounded-lg m-4 flex flex-col text-center p-3 m-4 flex-1 "><p className="text-lg mb-2">INCOME</p><p className="text-2xl text-green-500">${income}</p></div><div className="border-2 border-gray-300 rounded-lg flex flex-col text-center p-3 flex-1 m-4"><p className="text-lg mb-2">EXPENSES</p><p className="text-2xl text-red-500">${expense}</p></div></div>
-        <h1 className="text-left text-3xl mb-5 ">Add New Transaction</h1>
-        <form className="mb-5 flex flex-col justify-center items-center" onSubmit={sub}>
-          <input type="text" name="text" value={input.text||''} placeholder="Text" onChange={change1} className="border-2 border-gray-500 rounded-lg outline-none w-[90%] p-2 text-xl mb-5"></input>
-          <input type="text" name="amount" value={input.amount||''} placeholder="Amount($)" onChange={change2} className="border-2 border-gray-500  mb-4 rounded-lg outline-none w-[90%] p-2 text-xl"/>
-          <button onClick={clear} className="p-2 bg-gray-500 rounded-lg mb-4">Clear</button>
-          <button type="submit" className="bg-blue-600 rounded-lg py-2 w-[90%]">Add Transaction</button>
+
+  function handleChange(e){
+    const {name,value} = e.target;
+    setInput(prev => ({ ...prev, [name]: value }));
+  }
+  function deleteTransaction(id){
+    setTransactions(prev=>prev.filter((t)=>t.id!==id));
+
+  
+  }
+  useEffect(()=>{
+    localStorage.setItem("transactions",JSON.stringify(transactions));
+
+  },[transactions])
+
+  return (
+    <div className="bg-gray-200 min-h-screen flex items-center justify-center px-4">
+      
+      <div className="bg-white w-full max-w-md md:max-w-xl lg:max-w-2xl rounded-xl border p-4 sm:p-6 md:p-8">
+        
+        
+        <h1 className="text-center text-2xl sm:text-3xl md:text-4xl font-semibold mb-6">
+          Expense Tracker
+        </h1>
+
+        
+        <div className="border rounded-lg p-4 mb-6 text-center">
+          <p className="text-sm sm:text-base">YOUR BALANCE</p>
+          <p className={`text-2xl sm:text-3xl font-bold mt-2 ${
+            balance < 0 ? "text-red-500" : "text-green-500"
+          }`}>
+            ${balance}
+          </p>
+        </div>
+
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div className="border rounded-lg p-4 text-center">
+            <p className="text-sm">INCOME</p>
+            <p className="text-xl text-green-500 font-semibold">${income}</p>
+          </div>
+          <div className="border rounded-lg p-4 text-center">
+            <p className="text-sm">EXPENSES</p>
+            <p className="text-xl text-red-500 font-semibold">${expense}</p>
+          </div>
+        </div>
+
+      
+        <h2 className="text-xl sm:text-2xl font-semibold mb-4">
+          Add New Transaction
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4 mb-6">
+          <input
+            type="text"
+            name="text"
+            value={input.text}
+            onChange={handleChange}
+            placeholder="Text"
+            className="w-full border rounded-lg p-2 text-base sm:text-lg"
+          />
+
+          <input
+            type="number"
+            name="amount"
+            value={input.amount}
+            onChange={handleChange}
+            placeholder="Amount (+income, -expense)"
+            className="w-full border rounded-lg p-2 text-base sm:text-lg"
+          />
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={() => setInput({text:"",amount:""})}
+              className="w-full sm:w-1/2 bg-gray-400 text-white py-2 rounded-lg"
+            >
+              Clear
+            </button>
+
+            <button
+              type="submit"
+              className="w-full sm:w-1/2 bg-blue-600 text-white py-2 rounded-lg"
+            >
+              Add Transaction
+            </button>
+          </div>
         </form>
-        <h1 className="text-left text-3xl mb-5">History</h1>
-        <ul>
-          {tran.map((item,index)=>(
-            <li key={index} className="flex justify-between items-center"><div className="capitalize text-lg">{item.text}</div><div className={`text-lg ${item.amount<0?'text-red-500':'text-green-500'}`}>${item.amount}</div></li>
+
+        
+        <h2 className="text-xl sm:text-2xl font-semibold mb-3 text-left">
+          History
+        </h2>
+        {transactions.length===0?(
+          <p className='text-center text-gray'>No transactions</p>
+
+        ):
+
+       ( <ul className="space-y-2">
+          {transactions.map(item => (
+            <li
+              key={item.id}
+              className="flex justify-between items-center border p-2 rounded-lg"
+            >
+              <span className="capitalize text-sm sm:text-base">
+                {item.text}
+              </span>
+              <span className={`font-medium ${
+                item.amount < 0 ? "text-red-500" : "text-green-500"
+              }`}>
+                ${item.amount}
+              </span>
+              <button className="text-red-500 hover:text-red-700 font-medium" onClick={()=>deleteTransaction(item.id)}>✕</button>
+            </li>
           ))}
         </ul>
+        )}
 
       </div>
     </div>
-    </>
-  )
+  );
 }
